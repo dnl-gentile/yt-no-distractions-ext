@@ -108,7 +108,7 @@ body:not([dark]) .yt-quiet-mode-tooltip {
   opacity: 1;
   visibility: visible;
   transform: translateX(-50%) translateY(0);
-  transition: opacity 0.1s ease, transform 0.1s ease, visibility 0s linear 0s;``
+  transition: opacity 0.1s ease, transform 0.1s ease, visibility 0s linear 0s;
 }
 
 /* Style for the button on the search-app page */

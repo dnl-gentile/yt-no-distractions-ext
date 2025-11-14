@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube No Distractions",
+  "version": "1.0",
+  "description": "Redirects YouTube homepage to a distraction-free search bar. Click the icon to toggle.",
+  "permissions": [
+    "storage",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "https://www.youtube.com/*",
+    "https://yt-search-bar.web.app/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["content_script_youtube.js"],
+      "css": ["styles.css"]
+    },
+    {
+      "matches": ["https://yt-search-bar.web.app/*"],
+      "js": ["content_script_searchapp.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/quiet_mode_on.png",
+        "icons/quiet_mode_off.png",
+        "icons/quiet_mode_on_black.png",
+        "icons/quiet_mode_off_black.png"
+      ],
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://yt-search-bar.web.app/*"
+      ]
+    }
+  ],
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "YouTube No Distractions"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

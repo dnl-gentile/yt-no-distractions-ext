@@ -1,0 +1,211 @@
+/* Style for the button on YouTube's navbar */
+.yt-quiet-mode-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px; /* Standard YouTube icon padding */
+  margin: 0 -4px; /* Negative margin to reduce spacing */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  transition: background-color 0.2s ease;
+  position: relative;
+}
+
+/* Circular hover background - matches YouTube's notification button */
+/* Use more specific selectors and ensure it works on dark theme */
+.yt-quiet-mode-button:hover {
+  background-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* Dark theme hover - lighter to match YouTube's notification button */
+html[dark] .yt-quiet-mode-button:hover,
+body[dark] .yt-quiet-mode-button:hover,
+html[dark] #quiet-mode-toggle-button:hover,
+body[dark] #quiet-mode-toggle-button:hover,
+[dark] .yt-quiet-mode-button:hover,
+ytd-masthead[dark] .yt-quiet-mode-button:hover,
+ytd-masthead[dark] #quiet-mode-toggle-button:hover {
+  background-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* Light theme hover - darker/more opaque (but not on video pages where navbar is dark) */
+html:not([dark]) .yt-quiet-mode-button:hover,
+body:not([dark]) .yt-quiet-mode-button:hover,
+html:not([dark]) #quiet-mode-toggle-button:hover,
+body:not([dark]) #quiet-mode-toggle-button:hover {
+  background-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Video pages have dark navbar even in light theme - use light hover circle */
+ytd-masthead[dark] .yt-quiet-mode-button:hover,
+ytd-masthead[dark] #quiet-mode-toggle-button:hover {
+  background-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* Light theme home/search pages - darker hover circle */
+html:not([dark]) ytd-masthead:not([dark]) .yt-quiet-mode-button:hover,
+html:not([dark]) ytd-masthead:not([dark]) #quiet-mode-toggle-button:hover {
+  background-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Active/pressed state */
+.yt-quiet-mode-button:active {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+html:not([dark]) .yt-quiet-mode-button:active,
+body:not([dark]) .yt-quiet-mode-button:active {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+
+.yt-quiet-mode-button img {
+  width: 24px;
+  height: 24px;
+  /* Remove drop-shadow filter - icons should be crisp, not artificially thickened */
+  /* The icons themselves should have the right thickness */
+}
+
+/* Custom YouTube-style tooltip */
+.yt-quiet-mode-tooltip {
+  position: absolute;
+  bottom: -55px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-4px);
+  background-color: rgba(85, 85, 85, 0.92);
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.1s ease, transform 0.1s ease, visibility 0s linear 0.1s;
+  font-family: "Roboto", "Arial", sans-serif;
+  line-height: 1.4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Tooltip theme - same color for both dark and light themes */
+html[dark] .yt-quiet-mode-tooltip,
+body[dark] .yt-quiet-mode-tooltip,
+[dark] .yt-quiet-mode-tooltip,
+html:not([dark]) .yt-quiet-mode-tooltip,
+body:not([dark]) .yt-quiet-mode-tooltip {
+  background-color: rgba(85, 85, 85, 0.92);
+  color: #ffffff;
+}
+
+/* Show tooltip on hover */
+.yt-quiet-mode-tooltip.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+  transition: opacity 0.1s ease, transform 0.1s ease, visibility 0s linear 0s;``
+}
+
+/* Style for the button on the search-app page */
+.search-app-quiet-mode-button {
+  position: fixed !important;
+  top: 16px !important;
+  right: 16px !important;
+  z-index: 9999 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  width: 40px !important;
+  height: 40px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background-color 0.2s ease !important;
+  padding: 8px !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+  border-radius: 50% !important;
+  outline: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Circular hover background on search app - must override base transparent background */
+.search-app-quiet-mode-button:hover,
+#quiet-mode-toggle-button:hover {
+  background-color: rgba(0, 0, 0, 0.1) !important;
+  background: rgba(0, 0, 0, 0.1) !important;
+  opacity: 1 !important;
+}
+
+/* Tooltip on search app - positioned below button, adjusted to stay on screen */
+.search-app-quiet-mode-button .yt-quiet-mode-tooltip {
+  position: absolute;
+  top: 100% !important;
+  bottom: auto !important;
+  left: 50% !important;
+  right: auto !important;
+  margin-top: 8px;
+  transform: translateX(-50%) translateY(-4px);
+  background-color: rgba(85, 85, 85, 0.92);
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10001;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.1s ease, transform 0.1s ease, visibility 0s linear 0.1s;
+  font-family: "Roboto", "Arial", sans-serif;
+  line-height: 1.4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.search-app-quiet-mode-button .yt-quiet-mode-tooltip.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+  transition: opacity 0.1s ease, transform 0.1s ease, visibility 0s linear 0s;
+}
+
+.search-app-quiet-mode-button:focus {
+  outline: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.search-app-quiet-mode-button img {
+  width: 24px !important;
+  height: 24px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border-radius: 0 !important;
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Fix YouTube icon glow to white instead of blue */
+ytd-toggle-button-renderer button:focus,
+ytd-toggle-button-renderer button:active,
+#top-level-buttons-computed button:focus,
+#top-level-buttons-computed button:active {
+  outline: 2px solid rgba(255, 255, 255, 0.5) !important;
+  outline-offset: 2px !important;
+}
+
+ytd-toggle-button-renderer button:focus-visible,
+#top-level-buttons-computed button:focus-visible {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5) !important;
+}

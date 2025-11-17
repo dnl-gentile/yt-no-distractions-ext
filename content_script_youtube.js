@@ -235,6 +235,7 @@
             // Only remove if no distractions is enabled
             removeComments();
             removeSuggestions();
+            removeEndScreenRecommendations();
             checkAndApplyNoDistractions();
           }, 500); // Increased debounce to reduce erratic behavior
         }
@@ -431,6 +432,9 @@
             
             // Restore action buttons
             showActionButtons();
+            
+            // Restore end screen recommendations
+            restoreEndScreenRecommendations();
           };
           
           // Run restore multiple times to catch async-loaded elements
@@ -544,6 +548,9 @@
     
     // Hide action buttons (share, download, etc.)
     hideActionButtons();
+    
+    // Remove end screen recommendations
+    removeEndScreenRecommendations();
   }
   
   function applyNoDistractionsToNavbar() {
@@ -839,6 +846,112 @@
     });
   }
 
+  // Remove end screen recommendations and related videos
+  function removeEndScreenRecommendations() {
+    // ONLY hide if mode is enabled
+    if (!cachedNoDistractionsEnabled) return;
+    
+    // Selectors for end screen and related video elements
+    const selectors = [
+      // Modern end screen grid (the one you showed me)
+      '.ytp-fullscreen-grid-stills-container',
+      '.ytp-modern-videowall-still',
+      '.ytp-suggestion-set',
+      // End screen overlays
+      'ytd-endscreen-renderer',
+      'ytd-endscreen-content-renderer',
+      '.ytp-endscreen-content',
+      '.ytp-endscreen',
+      // Related videos after video ends
+      'ytd-watch-next-results-renderer',
+      'ytd-watch-flexy ytd-watch-next-results-renderer',
+      // Autoplay next section
+      'ytd-autoplay-renderer',
+      'ytd-watch-flexy ytd-autoplay-renderer',
+      // Related videos in primary content
+      'ytd-item-section-renderer[target-id="watch-related"]',
+      'ytd-watch-flexy ytd-item-section-renderer[target-id="watch-related"]',
+      // Generic related/up next sections
+      '#related',
+      'ytd-watch-flexy #related',
+      '#watch-related',
+      'ytd-watch-flexy #watch-related'
+    ];
+    
+    selectors.forEach(selector => {
+      try {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(element => {
+          // Store original state if not already stored
+          if (!element.dataset.originalDisplay) {
+            const computedStyle = window.getComputedStyle(element);
+            element.dataset.originalDisplay = computedStyle.display;
+            element.dataset.originalVisibility = computedStyle.visibility;
+          }
+          
+          // Hide completely
+          element.style.display = 'none';
+          element.style.visibility = 'hidden';
+          element.dataset.noDistractionsHidden = 'true';
+        });
+      } catch (e) {
+        // Continue with other selectors
+      }
+    });
+  }
+
+  function restoreEndScreenRecommendations() {
+    // Selectors for end screen and related video elements
+    const selectors = [
+      // Modern end screen grid
+      '.ytp-fullscreen-grid-stills-container',
+      '.ytp-modern-videowall-still',
+      '.ytp-suggestion-set',
+      'ytd-endscreen-renderer',
+      'ytd-endscreen-content-renderer',
+      '.ytp-endscreen-content',
+      '.ytp-endscreen',
+      'ytd-watch-next-results-renderer',
+      'ytd-watch-flexy ytd-watch-next-results-renderer',
+      'ytd-autoplay-renderer',
+      'ytd-watch-flexy ytd-autoplay-renderer',
+      'ytd-item-section-renderer[target-id="watch-related"]',
+      'ytd-watch-flexy ytd-item-section-renderer[target-id="watch-related"]',
+      '#related',
+      'ytd-watch-flexy #related',
+      '#watch-related',
+      'ytd-watch-flexy #watch-related'
+    ];
+    
+    selectors.forEach(selector => {
+      try {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(element => {
+          if (element.dataset.noDistractionsHidden === 'true') {
+            // Restore display
+            if (element.dataset.originalDisplay) {
+              element.style.display = element.dataset.originalDisplay;
+            } else {
+              element.style.display = '';
+            }
+            // Restore visibility
+            if (element.dataset.originalVisibility !== undefined) {
+              element.style.visibility = element.dataset.originalVisibility;
+            } else {
+              element.style.visibility = '';
+            }
+            // Remove all data attributes
+            element.removeAttribute('data-no-distractions-hidden');
+            element.removeAttribute('data-original-display');
+            element.removeAttribute('data-original-visibility');
+          }
+        });
+      } catch (e) {
+        // Continue with other selectors
+      }
+    });
+  }
+
   // Hide action buttons (share, download, etc.) - keep only like
   function hideActionButtons() {
     // ONLY hide if mode is enabled
@@ -938,41 +1051,48 @@
         removeComments();
         removeSuggestions();
         hideActionButtons();
+        removeEndScreenRecommendations();
         enableTheaterMode();
       }, 100);
       setTimeout(() => {
         removeComments();
         removeSuggestions();
         hideActionButtons();
+        removeEndScreenRecommendations();
         enableTheaterMode();
       }, 300);
       setTimeout(() => {
         removeComments();
         removeSuggestions();
         hideActionButtons();
+        removeEndScreenRecommendations();
         enableTheaterMode();
       }, 500);
       setTimeout(() => {
         removeComments();
         removeSuggestions();
         hideActionButtons();
+        removeEndScreenRecommendations();
         enableTheaterMode();
       }, 1000);
       setTimeout(() => {
         removeComments();
         removeSuggestions();
         hideActionButtons();
+        removeEndScreenRecommendations();
         enableTheaterMode();
       }, 2000);
       setTimeout(() => {
         removeComments();
         removeSuggestions();
         hideActionButtons();
+        removeEndScreenRecommendations();
         enableTheaterMode();
       }, 3000);
       setTimeout(() => {
         removeComments();
         removeSuggestions();
+        removeEndScreenRecommendations();
       }, 5000);
     }
     // When disabled, do NOT restore here - it's handled by the message listener
@@ -998,6 +1118,7 @@
           removeComments();
           removeSuggestions();
           hideActionButtons();
+          removeEndScreenRecommendations();
           enableTheaterMode();
         } else {
           // When disabled, do NOTHING here
@@ -1032,6 +1153,7 @@
     removeComments();
     removeSuggestions();
     hideActionButtons();
+    removeEndScreenRecommendations();
     enableTheaterMode();
     checkAndApplyNoDistractions();
   }
@@ -1039,6 +1161,7 @@
     if (isVideoPage() && cachedNoDistractionsEnabled) {
       removeComments();
       removeSuggestions();
+      removeEndScreenRecommendations();
       checkAndApplyNoDistractions();
     }
   }, 100);
@@ -1046,6 +1169,7 @@
     if (isVideoPage() && cachedNoDistractionsEnabled) {
       removeComments();
       removeSuggestions();
+      removeEndScreenRecommendations();
       checkAndApplyNoDistractions();
     }
   }, 300);
@@ -1092,6 +1216,7 @@
       // Continuously remove comments and suggestions as they appear
       removeComments();
       removeSuggestions();
+      removeEndScreenRecommendations();
     }
     // When disabled, do NOTHING - completely stop monitoring
     // This prevents fighting with YouTube's own loading behavior

@@ -1,7 +1,7 @@
 /*
     YouTube No Distractions - A Chrome extension that removes distractions from YouTube.
 
-    Copyright (C) 2025  Daniel Guedes
+    Copyright (C) 2025  Daniel Gentile
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

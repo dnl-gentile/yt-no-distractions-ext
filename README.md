@@ -186,7 +186,16 @@ We're particularly interested in feedback on:
 
 ## 📝 License
 
-[Add your license here - e.g., MIT, GPL, etc.]
+This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
+
+See the [LICENSE](LICENSE) file for the full license text.
+
+### What this means:
+- ✅ You are free to use, modify, and distribute this software
+- ✅ You must keep the same license (GPL-3.0) when distributing
+- ✅ You must include the license and copyright notices
+- ✅ You must make source code available when distributing
+- ❌ No warranty is provided (see LICENSE for details)
 
 ## 🙏 Acknowledgments
 

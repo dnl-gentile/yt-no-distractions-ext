@@ -186,7 +186,22 @@ We're particularly interested in feedback on:
 
 ## 📝 License
 
-[Add your license here - e.g., MIT, GPL, etc.]
+This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**.
+
+You may:
+
+- Use, modify, and distribute the software freely;
+- Create derivative works under the same license (copyleft);
+- Use the software for commercial and non-commercial purposes.
+
+You must:
+
+- Distribute source code when distributing binaries;
+- License any derivative work under GPL-3.0;
+- Include a copy of the GPL-3.0 license in your distributions.
+
+Full license text: https://www.gnu.org/licenses/gpl-3.0.en.html
+
 
 ## 🙏 Acknowledgments
 

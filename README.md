@@ -186,7 +186,6 @@ We're particularly interested in feedback on:
 
 ## 📝 License
 
-<<<<<<< HEAD
 This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
 
 See the [LICENSE](LICENSE) file for the full license text.
@@ -204,8 +203,6 @@ You must:
 - Include a copy of the GPL-3.0 license in your distributions.
 
 Full license text: https://www.gnu.org/licenses/gpl-3.0.en.html
-
->>>>>>> f4b16778b8dc42d6ead198b343cac212dad3186f
 
 ## 🙏 Acknowledgments
 

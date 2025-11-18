@@ -1,6 +1,16 @@
 # YouTube No Distractions
 
+> **A distraction-free YouTube experience: no homepage noise, no recommendations, no comments — just the video you want.**
+
 A Chrome extension that transforms YouTube into a distraction-free viewing experience by removing recommendations, comments, and other distracting elements.
+
+## 💭 Why I Built This
+
+I built this extension because YouTube became too overwhelming. Many times I found myself opening YouTube and clicking on almost all the recommended videos in new tabs, ending up with thousands of tabs open with videos I felt I "had to watch." Sometimes I'd watch them at 3x speed just to finish them because I felt they were important somehow, and I didn't want to miss anything.
+
+I didn't want that anymore. I wanted to go on YouTube, search for what I was actually looking for, watch it, and move on — without the endless rabbit hole of recommendations, trending videos, shorts, and comments pulling me in different directions.
+
+This tool makes YouTube calm again. It's for anyone who wants to use YouTube intentionally, not compulsively.
 
 ## 🎯 Purpose
 
@@ -33,9 +43,31 @@ When "No Distractions" mode is enabled on video pages:
 
 ## 🚀 Installation
 
-### For Testing (Manual Installation)
+### 🛠️ How to Install (Manual Installation)
 
-1. **Download or Clone the Repository**
+#### Option 1: Download from GitHub Releases (Recommended)
+
+1. **Download the latest release**
+   - Go to [Releases](https://github.com/danielgued/yt-no-distractions-ext/releases)
+   - Download `yt-no-distractions-ext.zip` from the latest release
+
+2. **Extract the ZIP file**
+   - Extract the folder to a location you'll remember (e.g., `Downloads/yt-no-distractions-ext`)
+
+3. **Load the Extension in Chrome**
+   - Open Chrome and navigate to `chrome://extensions/`
+   - Enable "Developer mode" (toggle in the top right corner)
+   - Click "Load unpacked"
+   - Select the extracted `yt-no-distractions-ext` folder
+   - The extension should now appear in your extensions list
+
+4. **Verify Installation**
+   - You should see the extension icon in your Chrome toolbar
+   - Visit `youtube.com` - it should redirect to the search interface
+
+#### Option 2: Clone from GitHub (For Developers)
+
+1. **Clone the Repository**
    ```bash
    git clone https://github.com/danielgued/yt-no-distractions-ext.git
    cd yt-no-distractions-ext
@@ -47,15 +79,7 @@ When "No Distractions" mode is enabled on video pages:
    ```
 
 3. **Load the Extension in Chrome**
-   - Open Chrome and navigate to `chrome://extensions/`
-   - Enable "Developer mode" (toggle in top right)
-   - Click "Load unpacked"
-   - Select the `yt-no-distractions-ext` folder
-   - The extension should now appear in your extensions list
-
-4. **Verify Installation**
-   - You should see the extension icon in your Chrome toolbar
-   - Visit `youtube.com` - it should redirect to the search interface
+   - Follow steps 3-4 from Option 1 above
 
 ## 📖 Usage
 
@@ -186,26 +210,18 @@ We're particularly interested in feedback on:
 
 ## 📝 License
 
-<<<<<<< HEAD
 This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
 
 See the [LICENSE](LICENSE) file for the full license text.
 
-You may:
-
-- Use, modify, and distribute the software freely;
-- Create derivative works under the same license (copyleft);
-- Use the software for commercial and non-commercial purposes.
-
-You must:
-
-- Distribute source code when distributing binaries;
-- License any derivative work under GPL-3.0;
-- Include a copy of the GPL-3.0 license in your distributions.
+### What this means:
+- ✅ You are free to use, modify, and distribute this software
+- ✅ You must keep the same license (GPL-3.0) when distributing
+- ✅ You must include the license and copyright notices
+- ✅ You must make source code available when distributing
+- ❌ No warranty is provided (see LICENSE for details)
 
 Full license text: https://www.gnu.org/licenses/gpl-3.0.en.html
-
->>>>>>> f4b16778b8dc42d6ead198b343cac212dad3186f
 
 ## 🙏 Acknowledgments
 
@@ -219,4 +235,3 @@ For questions, suggestions, or bug reports, please open an issue on GitHub.
 ---
 
 **Note**: This extension is not affiliated with or endorsed by YouTube/Google. It's an independent project to improve the YouTube viewing experience.
-

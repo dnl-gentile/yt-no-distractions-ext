@@ -5,7 +5,9 @@
 A Chrome extension that transforms YouTube into a distraction-free viewing experience by removing recommendations, comments, and other distracting elements.
 
 
-<img width="1440" height="810" alt="Screenshot 2025-11-17 at 22 21 46" src="https://github.com/user-attachments/assets/bb958531-1cbb-4823-9484-bd51ad657fc2" />
+<img width="1440" height="900" alt="Screenshot 2025-11-17 at 22 33 14" src="https://github.com/user-attachments/assets/ea74124b-304a-464d-978e-1d7238f0a126" />
+
+
 
 
 ## 💭 Why I Built This

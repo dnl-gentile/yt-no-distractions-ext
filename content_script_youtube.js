@@ -214,7 +214,8 @@
   }
 
   // Cache no distractions state for synchronous access
-  let cachedNoDistractionsEnabled = true; // Default to true
+  // Start as null until storage loads to avoid hiding anything prematurely
+  let cachedNoDistractionsEnabled = null;
   
   // Track if we're currently processing a restore to prevent loops
   let isRestoring = false;
@@ -224,7 +225,17 @@
   
   // Update cache when state changes
   chrome.storage.sync.get(['noDistractionsEnabled'], ({ noDistractionsEnabled }) => {
-    cachedNoDistractionsEnabled = noDistractionsEnabled ?? true;
+    // Default to true only after we know storage didn't have a value
+    cachedNoDistractionsEnabled = (noDistractionsEnabled === undefined || noDistractionsEnabled === null)
+      ? true
+      : noDistractionsEnabled;
+
+    // Apply the correct behavior once the real state is known
+    setupVideoPageObserver();
+    setupRestoreObserverWhenDisabled();
+    if (!cachedNoDistractionsEnabled && isVideoPage()) {
+      scheduleRestoreAfterDisable();
+    }
   });
   
   chrome.storage.onChanged.addListener((changes) => {
@@ -235,6 +246,7 @@
 
   // Setup video page observer - can be enabled/disabled based on mode
   let videoPageObserver = null;
+  let restoreObserver = null;
   
   function setupVideoPageObserver() {
     // Disconnect existing observer if any
@@ -264,6 +276,32 @@
         childList: true,
         subtree: true
       });
+    }
+  }
+
+  function setupRestoreObserverWhenDisabled() {
+    // Disconnect existing observer
+    if (restoreObserver) {
+      restoreObserver.disconnect();
+      restoreObserver = null;
+    }
+
+    // Only listen when mode is DISABLED on a video page
+    if (!cachedNoDistractionsEnabled && isVideoPage()) {
+      let restoreTimeoutId = null;
+      restoreObserver = new MutationObserver(() => {
+        // Debounce to avoid thrashing while YouTube streams in nodes
+        clearTimeout(restoreTimeoutId);
+        restoreTimeoutId = setTimeout(() => {
+          if (!cachedNoDistractionsEnabled && isVideoPage()) {
+            restoreSuggestions();
+            restoreEndScreenRecommendations();
+            restoreAllHiddenElements();
+          }
+        }, 150);
+      });
+
+      restoreObserver.observe(document.body, { childList: true, subtree: true });
     }
   }
 
@@ -344,6 +382,7 @@
       
       // Setup or teardown observer based on mode
       setupVideoPageObserver();
+      setupRestoreObserverWhenDisabled();
       
       // Apply or remove no distractions features
       if (isVideoPage()) {
@@ -356,117 +395,7 @@
         if (message.noDistractionsEnabled) {
           applyNoDistractionsToVideoPage();
         } else {
-          // When disabling, restore aggressively multiple times to catch async-loaded elements
-          // YouTube loads recommendations and comments asynchronously, so we need multiple attempts
-          const restoreAll = () => {
-            // Only restore if mode is still disabled (safety check)
-            if (cachedNoDistractionsEnabled) return;
-            
-            // Restore recommendations sidebar
-            const secondarySelectors = [
-              '#secondary',
-              'ytd-watch-flexy #secondary',
-              'ytd-watch-flexy[role="main"] #secondary',
-              '#columns #secondary',
-              'ytd-watch-flexy ytd-watch-next-secondary-results-renderer',
-              'ytd-watch-next-secondary-results-renderer'
-            ];
-            
-            secondarySelectors.forEach(selector => {
-              const secondary = document.querySelector(selector);
-              if (secondary) {
-                // Always restore if hidden (even if not by us, in case YouTube replaced the element)
-                const isHidden = secondary.dataset.noDistractionsHidden === 'true' || 
-                                secondary.style.display === 'none' ||
-                                window.getComputedStyle(secondary).display === 'none';
-                
-                if (isHidden) {
-                  if (secondary.dataset.originalDisplay) {
-                    secondary.style.display = secondary.dataset.originalDisplay;
-                  } else {
-                    // Default for secondary is usually 'block' or flex, but empty string should work
-                    secondary.style.display = '';
-                  }
-                  secondary.removeAttribute('data-no-distractions-hidden');
-                  secondary.removeAttribute('data-original-display');
-                }
-              }
-            });
-            
-            // Restore comments - try multiple selectors
-            const commentSelectors = [
-              '#comments',
-              'ytd-comments#comments',
-              'ytd-watch-flexy #comments',
-              '#primary #comments',
-              'ytd-comments',
-              'ytd-comments-header-renderer',
-              '[id="comments"]',
-              'ytd-watch-flexy ytd-item-section-renderer[target-id="watch-discussion"]',
-              'ytd-item-section-renderer[target-id="watch-discussion"]'
-            ];
-            
-            commentSelectors.forEach(selector => {
-              try {
-                const comments = document.querySelectorAll(selector);
-                comments.forEach(comment => {
-                  // Check if it's actually a comment element
-                  const isComment = comment.id === 'comments' ||
-                                   comment.tagName === 'YTD-COMMENTS' ||
-                                   comment.tagName === 'YTD-COMMENTS-HEADER-RENDERER' ||
-                                   comment.querySelector('ytd-comments') ||
-                                   comment.querySelector('#comments') ||
-                                   comment.getAttribute('target-id') === 'watch-discussion';
-                  
-                  if (isComment) {
-                    // Always restore if hidden (even if not by us, in case YouTube replaced the element)
-                    const computedStyle = window.getComputedStyle(comment);
-                    const isHidden = comment.dataset.noDistractionsHidden === 'true' || 
-                                    comment.style.display === 'none' || 
-                                    comment.style.visibility === 'hidden' ||
-                                    computedStyle.display === 'none' ||
-                                    computedStyle.visibility === 'hidden';
-                    
-                    if (isHidden) {
-                      if (comment.dataset.originalDisplay) {
-                        comment.style.display = comment.dataset.originalDisplay;
-                      } else {
-                        comment.style.display = '';
-                      }
-                      if (comment.dataset.originalVisibility !== undefined) {
-                        comment.style.visibility = comment.dataset.originalVisibility;
-                      } else {
-                        comment.style.visibility = '';
-                      }
-                      comment.removeAttribute('data-no-distractions-hidden');
-                      comment.removeAttribute('data-original-display');
-                      comment.removeAttribute('data-original-visibility');
-                    }
-                  }
-                });
-              } catch (e) {
-                // Continue with other selectors
-              }
-            });
-            
-            // Restore action buttons
-            showActionButtons();
-            
-            // Restore end screen recommendations
-            restoreEndScreenRecommendations();
-          };
-          
-          // Run restore multiple times to catch async-loaded elements
-          restoreAll(); // Immediate
-          setTimeout(restoreAll, 100);
-          setTimeout(restoreAll, 300);
-          setTimeout(restoreAll, 500);
-          setTimeout(restoreAll, 1000);
-          setTimeout(restoreAll, 2000);
-          setTimeout(restoreAll, 3000);
-          
-          hasRestoredAfterToggle = true;
-          lastRestoreTime = Date.now();
+          scheduleRestoreAfterDisable();
         }
       }
       // Update navbar
@@ -625,7 +554,10 @@
   }
   
   function restoreNavbarButtons() {
-    const hiddenButtons = document.querySelectorAll('[data-no-distractions-hidden="true"]');
+    const navbar = document.querySelector('ytd-masthead #end #buttons') || document.querySelector('ytd-masthead');
+    if (!navbar) return;
+    
+    const hiddenButtons = navbar.querySelectorAll('[data-no-distractions-hidden="true"]');
     hiddenButtons.forEach(btn => {
       btn.style.display = '';
       btn.removeAttribute('data-no-distractions-hidden');
@@ -673,12 +605,66 @@
     }
   }
 
-  // Remove suggestions sidebar completely
+  function applySecondaryHiddenStyles(element) {
+    if (!element || element.dataset.noDistractionsSecondaryCollapse === 'true') return;
+    
+    element.dataset.noDistractionsHidden = 'true';
+    element.dataset.noDistractionsSecondaryCollapse = 'true';
+    
+    element.style.setProperty('flex', '0 0 0', 'important');
+    element.style.setProperty('width', '0px', 'important');
+    element.style.setProperty('min-width', '0px', 'important');
+    element.style.setProperty('max-width', '0px', 'important');
+    element.style.setProperty('margin', '0', 'important');
+    element.style.setProperty('padding', '0', 'important');
+    element.style.setProperty('opacity', '0', 'important');
+    element.style.setProperty('pointer-events', 'none', 'important');
+    element.style.setProperty('visibility', 'hidden', 'important');
+    element.style.setProperty('display', 'none', 'important');
+    element.style.setProperty('position', 'relative', 'important');
+  }
+
+  function clearSecondaryHiddenStyles(element) {
+    if (!element || element.dataset.noDistractionsSecondaryCollapse !== 'true') return;
+    
+    element.style.removeProperty('flex');
+    element.style.removeProperty('width');
+    element.style.removeProperty('min-width');
+    element.style.removeProperty('max-width');
+    element.style.removeProperty('margin');
+    element.style.removeProperty('padding');
+    element.style.removeProperty('opacity');
+    element.style.removeProperty('pointer-events');
+    element.style.removeProperty('visibility');
+    element.style.removeProperty('display');
+    element.style.removeProperty('position');
+    
+    element.removeAttribute('data-no-distractions-hidden');
+    delete element.dataset.noDistractionsSecondaryCollapse;
+  }
+
+  function expandPrimaryColumn() {
+    const primary = document.querySelector('ytd-watch-flexy #primary');
+    if (!primary) return;
+    primary.dataset.noDistractionsPrimaryExpanded = 'true';
+    primary.style.setProperty('flex', '1 1 100%', 'important');
+    primary.style.setProperty('max-width', '100%', 'important');
+  }
+
+  function restorePrimaryColumn() {
+    const primaries = document.querySelectorAll('ytd-watch-flexy #primary[data-no-distractions-primary-expanded="true"]');
+    primaries.forEach(primary => {
+      primary.style.removeProperty('flex');
+      primary.style.removeProperty('max-width');
+      primary.removeAttribute('data-no-distractions-primary-expanded');
+    });
+  }
+
+  // Remove suggestions sidebar completely (collapse but keep DOM alive)
   function removeSuggestions() {
     // ONLY hide if mode is enabled
     if (!cachedNoDistractionsEnabled) return;
     
-    // Try multiple selectors
     const selectors = [
       '#secondary',
       'ytd-watch-flexy #secondary',
@@ -688,49 +674,68 @@
       'ytd-watch-next-secondary-results-renderer'
     ];
     
+    let collapsedAny = false;
     selectors.forEach(selector => {
       const secondary = document.querySelector(selector);
       if (secondary) {
-        // Store original state if not already stored
-        if (!secondary.dataset.originalDisplay) {
-          secondary.dataset.originalDisplay = window.getComputedStyle(secondary).display;
-        }
-        
-        // Hide completely
-        secondary.style.display = 'none';
-        secondary.dataset.noDistractionsHidden = 'true';
+        applySecondaryHiddenStyles(secondary);
+        collapsedAny = true;
       }
     });
+    
+    if (collapsedAny) {
+      expandPrimaryColumn();
+    }
   }
 
   function restoreSuggestions() {
-    // Prevent multiple simultaneous restores
-    if (isRestoring) return;
+    const selectors = [
+      '#secondary',
+      'ytd-watch-flexy #secondary',
+      'ytd-watch-flexy[role="main"] #secondary',
+      '#columns #secondary',
+      'ytd-watch-flexy ytd-watch-next-secondary-results-renderer',
+      'ytd-watch-next-secondary-results-renderer',
+      '#secondary-inner',
+      '#related',
+      'ytd-watch-flexy #related'
+    ];
     
-    const secondary = document.querySelector('#secondary, ytd-watch-flexy #secondary');
-    if (!secondary) return;
+    selectors.forEach(selector => {
+      const matches = document.querySelectorAll(selector);
+      matches.forEach(secondary => {
+        const computedStyle = window.getComputedStyle(secondary);
+        const isHidden = secondary.dataset.noDistractionsHidden === 'true' || 
+                        secondary.dataset.noDistractionsSecondaryCollapse === 'true' ||
+                        secondary.style.display === 'none' ||
+                        computedStyle.display === 'none' ||
+                        secondary.getAttribute('hidden') === 'true';
+        
+        if (isHidden) {
+          if (secondary.hasAttribute('hidden')) {
+            secondary.removeAttribute('hidden');
+          }
+          
+          // Remove collapse styles so layout can expand immediately
+          clearSecondaryHiddenStyles(secondary);
+          
+          secondary.style.display = '';
+          secondary.style.visibility = '';
+          secondary.removeAttribute('data-no-distractions-hidden');
+          secondary.removeAttribute('data-original-display');
+          secondary.removeAttribute('data-original-visibility');
+          
+          // Fallback: if still collapsed, force a sensible default
+          if (secondary.getBoundingClientRect().width < 10) {
+            secondary.style.display = 'block';
+            secondary.style.visibility = 'visible';
+          }
+        }
+      });
+    });
     
-    // Only restore if actually hidden by our extension
-    const isHidden = secondary.style.display === 'none' || 
-                     secondary.dataset.noDistractionsHidden === 'true';
-    if (!isHidden) return;
-    
-    isRestoring = true;
-    
-    // Restore the display
-    if (secondary.dataset.originalDisplay) {
-      secondary.style.display = secondary.dataset.originalDisplay;
-    } else {
-      secondary.style.display = '';
-    }
-    secondary.removeAttribute('data-no-distractions-hidden');
-    secondary.removeAttribute('data-original-display');
-    
-    // Reset flag after a delay to allow DOM to settle
-    clearTimeout(restoreTimeout);
-    restoreTimeout = setTimeout(() => {
-      isRestoring = false;
-    }, 1000);
+    restorePrimaryColumn();
+    window.dispatchEvent(new Event('resize'));
   }
 
   // Remove comments completely - be more specific to avoid hiding other elements
@@ -870,7 +875,7 @@
     // ONLY hide if mode is enabled
     if (!cachedNoDistractionsEnabled) return;
     
-    // Selectors for end screen and related video elements
+    // Selectors for end screen overlays and in-player suggestions (not the sidebar)
     const selectors = [
       // Modern end screen grid (the one you showed me)
       '.ytp-fullscreen-grid-stills-container',
@@ -881,20 +886,11 @@
       'ytd-endscreen-content-renderer',
       '.ytp-endscreen-content',
       '.ytp-endscreen',
-      // Related videos after video ends
-      'ytd-watch-next-results-renderer',
-      'ytd-watch-flexy ytd-watch-next-results-renderer',
-      // Autoplay next section
-      'ytd-autoplay-renderer',
-      'ytd-watch-flexy ytd-autoplay-renderer',
-      // Related videos in primary content
-      'ytd-item-section-renderer[target-id="watch-related"]',
-      'ytd-watch-flexy ytd-item-section-renderer[target-id="watch-related"]',
-      // Generic related/up next sections
-      '#related',
-      'ytd-watch-flexy #related',
-      '#watch-related',
-      'ytd-watch-flexy #watch-related'
+      // Autoplay overlays that appear over the player
+      '.ytp-autonav-endscreen-countdown-overlay',
+      '.ytp-autonav-endscreen-upnext-tooltip',
+      '.ytp-autonav-endscreen-button-container',
+      '.ytp-autonav-endscreen'
     ];
     
     selectors.forEach(selector => {
@@ -920,7 +916,7 @@
   }
 
   function restoreEndScreenRecommendations() {
-    // Selectors for end screen and related video elements
+    // Selectors for end screen overlays and in-player suggestions
     const selectors = [
       // Modern end screen grid
       '.ytp-fullscreen-grid-stills-container',
@@ -930,16 +926,10 @@
       'ytd-endscreen-content-renderer',
       '.ytp-endscreen-content',
       '.ytp-endscreen',
-      'ytd-watch-next-results-renderer',
-      'ytd-watch-flexy ytd-watch-next-results-renderer',
-      'ytd-autoplay-renderer',
-      'ytd-watch-flexy ytd-autoplay-renderer',
-      'ytd-item-section-renderer[target-id="watch-related"]',
-      'ytd-watch-flexy ytd-item-section-renderer[target-id="watch-related"]',
-      '#related',
-      'ytd-watch-flexy #related',
-      '#watch-related',
-      'ytd-watch-flexy #watch-related'
+      '.ytp-autonav-endscreen-countdown-overlay',
+      '.ytp-autonav-endscreen-upnext-tooltip',
+      '.ytp-autonav-endscreen-button-container',
+      '.ytp-autonav-endscreen'
     ];
     
     selectors.forEach(selector => {
@@ -1054,6 +1044,70 @@
     
     if (menuBtn) menuBtn.remove();
     if (menuContainer) menuContainer.remove();
+  }
+
+  // Generic fallback: unhide anything we tagged as hidden by the extension
+  function restoreAllHiddenElements() {
+    const hiddenElements = document.querySelectorAll('[data-no-distractions-hidden="true"]');
+    hiddenElements.forEach(element => {
+      clearSecondaryHiddenStyles(element);
+      if (element.hasAttribute('hidden')) {
+        element.removeAttribute('hidden');
+      }
+
+      if (element.dataset.originalDisplay) {
+        const displayValue = element.dataset.originalDisplay === 'none' ? '' : element.dataset.originalDisplay;
+        element.style.display = displayValue;
+      } else {
+        element.style.display = '';
+      }
+
+      if (element.dataset.originalVisibility !== undefined) {
+        element.style.visibility = element.dataset.originalVisibility;
+      } else {
+        element.style.visibility = '';
+      }
+
+      element.removeAttribute('data-no-distractions-hidden');
+      element.removeAttribute('data-original-display');
+      element.removeAttribute('data-original-visibility');
+    });
+    
+    restorePrimaryColumn();
+    window.dispatchEvent(new Event('resize'));
+  }
+
+  function scheduleRestoreAfterDisable() {
+    if (cachedNoDistractionsEnabled === null || cachedNoDistractionsEnabled || !isVideoPage()) return;
+    
+    const restoreAll = () => {
+      if (cachedNoDistractionsEnabled) return;
+      restoreSuggestions();
+      restoreComments();
+      showActionButtons();
+      restoreEndScreenRecommendations();
+      restoreAllHiddenElements();
+      
+      // Force-restore secondary if nothing is visible yet
+      const visibleSecondary = Array.from(document.querySelectorAll('#secondary, ytd-watch-flexy #secondary, #related, ytd-watch-flexy #related'))
+        .find(el => el.offsetParent !== null || el.getBoundingClientRect().width > 10);
+      if (!visibleSecondary) {
+        const candidate = document.querySelector('#secondary, ytd-watch-flexy #secondary, #related, ytd-watch-flexy #related');
+        if (candidate) {
+          candidate.removeAttribute('hidden');
+          candidate.style.display = 'block';
+          candidate.style.visibility = 'visible';
+        }
+      }
+    };
+    
+    // Multiple attempts to catch async YouTube rendering
+    [0, 100, 300, 500, 1000, 2000, 3000, 5000, 8000, 12000].forEach(delay => {
+      setTimeout(restoreAll, delay);
+    });
+    
+    hasRestoredAfterToggle = true;
+    lastRestoreTime = Date.now();
   }
 
   // Monitor for video page and apply no distractions features
@@ -1203,11 +1257,13 @@
       
       // Setup or teardown observer based on mode
       setupVideoPageObserver();
+      setupRestoreObserverWhenDisabled();
       
       // Reset restore tracking when state changes
       if (!cachedNoDistractionsEnabled) {
         hasRestoredAfterToggle = false;
         lastRestoreTime = 0;
+        scheduleRestoreAfterDisable();
       }
       
       // Only apply when enabled - restoration is handled by message listener

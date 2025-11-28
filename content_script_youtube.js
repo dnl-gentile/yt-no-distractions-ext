@@ -289,16 +289,33 @@
     // Only listen when mode is DISABLED on a video page
     if (!cachedNoDistractionsEnabled && isVideoPage()) {
       let restoreTimeoutId = null;
+      let lastRestoreTime = 0;
+      const MIN_RESTORE_INTERVAL = 500; // Minimum time between restores (ms)
+      
       restoreObserver = new MutationObserver(() => {
+        // Skip if we just restored recently to avoid interfering with YouTube's loading
+        const now = Date.now();
+        if (now - lastRestoreTime < MIN_RESTORE_INTERVAL) {
+          return;
+        }
+        
         // Debounce to avoid thrashing while YouTube streams in nodes
         clearTimeout(restoreTimeoutId);
         restoreTimeoutId = setTimeout(() => {
           if (!cachedNoDistractionsEnabled && isVideoPage()) {
-            restoreSuggestions();
-            restoreEndScreenRecommendations();
-            restoreAllHiddenElements();
+            // Only restore if video is not currently loading
+            const video = document.querySelector('video');
+            const isVideoLoading = video && (video.readyState < 3 || video.networkState === 2);
+            
+            // Don't restore while video is loading to avoid interfering with loading elements
+            if (!isVideoLoading) {
+              restoreSuggestions();
+              restoreEndScreenRecommendations();
+              restoreAllHiddenElements();
+              lastRestoreTime = Date.now();
+            }
           }
-        }, 150);
+        }, 300); // Increased debounce to reduce interference
       });
 
       restoreObserver.observe(document.body, { childList: true, subtree: true });
@@ -391,6 +408,9 @@
         hasRestoredAfterToggle = false;
         lastRestoreTime = 0;
         clearTimeout(restoreTimeout);
+        
+        // Mark that this is NOT initial page load (it's a toggle)
+        isInitialPageLoad = false;
         
         if (message.noDistractionsEnabled) {
           applyNoDistractionsToVideoPage();
@@ -1046,10 +1066,79 @@
     if (menuContainer) menuContainer.remove();
   }
 
+  // Helper function to check if an element is a loading element that shouldn't be restored
+  function isLoadingElement(element) {
+    if (!element) return false;
+    
+    // Check for common YouTube loading element classes and attributes
+    const classList = element.classList || [];
+    const className = element.className || '';
+    const id = element.id || '';
+    const tagName = element.tagName || '';
+    
+    // YouTube loading/skeleton elements
+    const loadingPatterns = [
+      'loading', 'skeleton', 'spinner', 'placeholder', 'shimmer',
+      'ytp-big-mode', 'ytp-loading', 'ytp-spinner', 'ytp-cued-thumbnail',
+      'skeleton-text', 'skeleton-image', 'skeleton-button'
+    ];
+    
+    // Check class names
+    for (const pattern of loadingPatterns) {
+      if (className.toLowerCase().includes(pattern) || id.toLowerCase().includes(pattern)) {
+        return true;
+      }
+    }
+    
+    // Check for player loading overlays (these should never be restored)
+    if (className.includes('ytp-') && (
+      className.includes('loading') || 
+      className.includes('buffering') ||
+      className.includes('spinner') ||
+      id.includes('loading') ||
+      id.includes('buffering')
+    )) {
+      return true;
+    }
+    
+    // Check for loading-related data attributes
+    if (element.hasAttribute('loading') || 
+        element.hasAttribute('aria-busy') ||
+        element.getAttribute('data-loading') === 'true') {
+      return true;
+    }
+    
+    // Check if it's inside a loading container
+    const loadingContainer = element.closest('[class*="loading"], [class*="skeleton"], [class*="spinner"], [id*="loading"]');
+    if (loadingContainer) {
+      return true;
+    }
+    
+    // Check if it's inside the player and looks like a loading element
+    const player = element.closest('#movie_player, .html5-video-player, ytd-player');
+    if (player && (className.includes('ytp-') || id.includes('ytp-'))) {
+      // Be more careful with player elements - only exclude obvious loading elements
+      if (className.includes('loading') || className.includes('buffering') || 
+          className.includes('spinner') || id.includes('loading') || id.includes('buffering')) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
   // Generic fallback: unhide anything we tagged as hidden by the extension
   function restoreAllHiddenElements() {
+    // ONLY restore when mode is OFF - don't interfere when mode is ON
+    if (cachedNoDistractionsEnabled) return;
+    
     const hiddenElements = document.querySelectorAll('[data-no-distractions-hidden="true"]');
     hiddenElements.forEach(element => {
+      // Skip loading elements - don't restore them as they're YouTube's own loading UI
+      if (isLoadingElement(element)) {
+        return;
+      }
+      
       clearSecondaryHiddenStyles(element);
       if (element.hasAttribute('hidden')) {
         element.removeAttribute('hidden');
@@ -1077,11 +1166,21 @@
     window.dispatchEvent(new Event('resize'));
   }
 
+  // Track if this is initial page load (vs toggle)
+  let isInitialPageLoad = true;
+  
   function scheduleRestoreAfterDisable() {
     if (cachedNoDistractionsEnabled === null || cachedNoDistractionsEnabled || !isVideoPage()) return;
     
     const restoreAll = () => {
       if (cachedNoDistractionsEnabled) return;
+      
+      // On initial page load, wait longer to avoid interfering with loading elements
+      // Check if page is still loading
+      if (isInitialPageLoad && (document.readyState !== 'complete' || document.querySelector('video')?.readyState < 3)) {
+        return; // Don't restore yet if page is still loading
+      }
+      
       restoreSuggestions();
       restoreComments();
       showActionButtons();
@@ -1101,10 +1200,19 @@
       }
     };
     
-    // Multiple attempts to catch async YouTube rendering
-    [0, 100, 300, 500, 1000, 2000, 3000, 5000, 8000, 12000].forEach(delay => {
-      setTimeout(restoreAll, delay);
-    });
+    // On initial page load, wait longer before first restore attempt
+    // This prevents interfering with YouTube's loading elements
+    if (isInitialPageLoad) {
+      // Wait for page to be fully loaded before restoring
+      [2000, 3000, 4000, 5000, 7000, 10000, 15000].forEach(delay => {
+        setTimeout(restoreAll, delay);
+      });
+    } else {
+      // On toggle, restore immediately
+      [0, 100, 300, 500, 1000, 2000, 3000, 5000, 8000, 12000].forEach(delay => {
+        setTimeout(restoreAll, delay);
+      });
+    }
     
     hasRestoredAfterToggle = true;
     lastRestoreTime = Date.now();
@@ -1176,6 +1284,8 @@
   setInterval(() => {
     if (window.location.href !== lastUrl) {
       lastUrl = window.location.href;
+      // Reset initial page load flag on navigation
+      isInitialPageLoad = true;
       
       // Update icon when navigating (theme or page type might have changed)
       if (noDistractionsButton) {
@@ -1263,6 +1373,8 @@
       if (!cachedNoDistractionsEnabled) {
         hasRestoredAfterToggle = false;
         lastRestoreTime = 0;
+        // Mark that this is NOT initial page load (it's a toggle via storage change)
+        isInitialPageLoad = false;
         scheduleRestoreAfterDisable();
       }
       
@@ -1296,4 +1408,134 @@
     // When disabled, do NOTHING - completely stop monitoring
     // This prevents fighting with YouTube's own loading behavior
   }, 3000); // Check every 3 seconds
+
+  // Replace "Human verified" tags with "Likely human" and AI tags with "Likely AI"
+  function replaceVerificationTags() {
+    // Find elements that likely contain verification badges/labels
+    // YouTube typically uses badges, chips, or metadata elements for these tags
+    const selectors = [
+      // Common badge/chip selectors
+      '[class*="badge"]',
+      '[class*="chip"]',
+      '[class*="label"]',
+      '[class*="tag"]',
+      '[class*="metadata"]',
+      '[class*="verified"]',
+      // YouTube-specific selectors
+      'ytd-badge-supported-renderer',
+      'ytd-badge-renderer',
+      'yt-chip-cloud-chip-renderer',
+      'ytd-metadata-row-renderer',
+      // Any element with verification-related text
+      '*'
+    ];
+
+    // Function to replace text in an element
+    function replaceTextInElement(element) {
+      if (!element || element.dataset.tagReplaced === 'true') return;
+      
+      const text = element.textContent?.trim() || '';
+      const ariaLabel = element.getAttribute('aria-label') || '';
+      const title = element.getAttribute('title') || '';
+      
+      let changed = false;
+      
+      // Replace "Human verified" with "Likely human"
+      if (text.match(/human\s+verified/i) && !text.match(/likely\s+human/i)) {
+        element.textContent = text.replace(/human\s+verified/gi, 'Likely human');
+        changed = true;
+      }
+      
+      // Replace "AI generated" or "AI" with "Likely AI"
+      if (text.match(/\bai\s+generated\b/i) && !text.match(/likely\s+ai/i)) {
+        element.textContent = text.replace(/\bai\s+generated\b/gi, 'Likely AI');
+        changed = true;
+      } else if (text.trim().toLowerCase() === 'ai' && !text.match(/likely\s+ai/i)) {
+        element.textContent = 'Likely AI';
+        changed = true;
+      }
+      
+      // Update aria-label
+      if (ariaLabel && (ariaLabel.match(/human\s+verified/i) || ariaLabel.match(/\bai\s+generated\b/i) || ariaLabel.trim().toLowerCase() === 'ai')) {
+        let newAriaLabel = ariaLabel;
+        if (ariaLabel.match(/human\s+verified/i) && !ariaLabel.match(/likely\s+human/i)) {
+          newAriaLabel = newAriaLabel.replace(/human\s+verified/gi, 'Likely human');
+        }
+        if (ariaLabel.match(/\bai\s+generated\b/i) && !ariaLabel.match(/likely\s+ai/i)) {
+          newAriaLabel = newAriaLabel.replace(/\bai\s+generated\b/gi, 'Likely AI');
+        } else if (ariaLabel.trim().toLowerCase() === 'ai' && !ariaLabel.match(/likely\s+ai/i)) {
+          newAriaLabel = 'Likely AI';
+        }
+        if (newAriaLabel !== ariaLabel) {
+          element.setAttribute('aria-label', newAriaLabel);
+          changed = true;
+        }
+      }
+      
+      // Update title
+      if (title && (title.match(/human\s+verified/i) || title.match(/\bai\s+generated\b/i) || title.trim().toLowerCase() === 'ai')) {
+        let newTitle = title;
+        if (title.match(/human\s+verified/i) && !title.match(/likely\s+human/i)) {
+          newTitle = newTitle.replace(/human\s+verified/gi, 'Likely human');
+        }
+        if (title.match(/\bai\s+generated\b/i) && !title.match(/likely\s+ai/i)) {
+          newTitle = newTitle.replace(/\bai\s+generated\b/gi, 'Likely AI');
+        } else if (title.trim().toLowerCase() === 'ai' && !title.match(/likely\s+ai/i)) {
+          newTitle = 'Likely AI';
+        }
+        if (newTitle !== title) {
+          element.setAttribute('title', newTitle);
+          changed = true;
+        }
+      }
+      
+      if (changed) {
+        element.dataset.tagReplaced = 'true';
+      }
+    }
+
+    // Search for elements containing verification text
+    const allElements = document.querySelectorAll('*');
+    allElements.forEach(element => {
+      const text = element.textContent?.trim() || '';
+      const ariaLabel = element.getAttribute('aria-label') || '';
+      const title = element.getAttribute('title') || '';
+      
+      // Only process elements that contain verification-related text
+      // and haven't been processed yet
+      if ((text.match(/human\s+verified/i) && !text.match(/likely\s+human/i)) ||
+          (text.match(/\bai\s+generated\b/i) && !text.match(/likely\s+ai/i)) ||
+          (text.trim().toLowerCase() === 'ai' && !text.match(/likely\s+ai/i)) ||
+          (ariaLabel.match(/human\s+verified/i) && !ariaLabel.match(/likely\s+human/i)) ||
+          (ariaLabel.match(/\bai\s+generated\b/i) && !ariaLabel.match(/likely\s+ai/i)) ||
+          (ariaLabel.trim().toLowerCase() === 'ai' && !ariaLabel.match(/likely\s+ai/i)) ||
+          (title.match(/human\s+verified/i) && !title.match(/likely\s+human/i)) ||
+          (title.match(/\bai\s+generated\b/i) && !title.match(/likely\s+ai/i)) ||
+          (title.trim().toLowerCase() === 'ai' && !title.match(/likely\s+ai/i))) {
+        replaceTextInElement(element);
+      }
+    });
+  }
+
+  // Run tag replacement on page load and continuously monitor for new content
+  if (isVideoPage()) {
+    // Initial replacement
+    setTimeout(replaceVerificationTags, 500);
+    setTimeout(replaceVerificationTags, 1500);
+    setTimeout(replaceVerificationTags, 3000);
+    
+    // Monitor for dynamically loaded content
+    const tagReplacementObserver = new MutationObserver(() => {
+      replaceVerificationTags();
+    });
+    
+    tagReplacementObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true
+    });
+    
+    // Also run periodically to catch any missed updates
+    setInterval(replaceVerificationTags, 2000);
+  }
 })();

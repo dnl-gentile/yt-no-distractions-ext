@@ -9,7 +9,8 @@
   ],
   "host_permissions": [
     "https://www.youtube.com/*",
-    "https://yt-search-bar.web.app/*"
+    "https://yt-search-bar.web.app/*",
+    "https://www.google-analytics.com/*"
   ],
   "background": {
     "service_worker": "background.js"

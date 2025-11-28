@@ -17,10 +17,21 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+// Import analytics
+importScripts('analytics.js');
+
+// Initialize Google Analytics
+const analytics = new Analytics('G-Y6EVNLSKLJ', 'JuFahXeVR0anCWYMk94y4g');
+
 // Set the default state on installation
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
   chrome.storage.sync.set({ noDistractionsEnabled: true });
   console.log('YouTube No Distractions installed. No distractions enabled by default.');
+  
+  // Track installation
+  if (details.reason === 'install') {
+    analytics.trackInstall();
+  }
 });
 
 // Listen for navigation events to 'youtube.com'
@@ -42,6 +53,8 @@ chrome.webNavigation.onBeforeNavigate.addListener(
     if (isHomepage) {
       chrome.storage.sync.get(['noDistractionsEnabled'], ({ noDistractionsEnabled }) => {
         if (noDistractionsEnabled) {
+          // Track homepage redirect
+          analytics.trackHomepageRedirect();
           // Redirect to the quiet app
           chrome.tabs.update(details.tabId, { url: 'https://yt-search-bar.web.app' });
         }
@@ -70,6 +83,8 @@ chrome.webNavigation.onCompleted.addListener(
     if (isHomepage) {
       chrome.storage.sync.get(['noDistractionsEnabled'], ({ noDistractionsEnabled }) => {
         if (noDistractionsEnabled) {
+          // Track homepage redirect
+          analytics.trackHomepageRedirect();
           // Redirect to the quiet app
           chrome.tabs.update(details.tabId, { url: 'https://yt-search-bar.web.app' });
         }
@@ -88,6 +103,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.storage.sync.get(['noDistractionsEnabled'], ({ noDistractionsEnabled }) => {
       const newState = !noDistractionsEnabled;
 
+      // Track toggle event
+      analytics.trackToggle(newState);
+
       // Save the new state
       chrome.storage.sync.set({ noDistractionsEnabled: newState }, () => {
         
@@ -96,6 +114,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const isVideoPage = tab.url && tab.url.includes('/watch');
           
           if (isVideoPage) {
+            // Track video page interaction
+            analytics.trackVideoPage();
             // If on video page, don't reload - let content script handle show/hide dynamically
             // Just notify the content script to update
             chrome.tabs.sendMessage(sender.tab.id, { action: 'updateNoDistractions', noDistractionsEnabled: newState });
